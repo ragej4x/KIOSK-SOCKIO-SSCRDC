@@ -2,7 +2,7 @@
 Overview</h1>
 This documentation outlines the integration of USB devices (Arduino, bill acceptor, coin slot, coin hopper, and tablet) with the SOCKIO checkout system. The goal is to use USB detection and communication for managing hardware peripherals within the checkout application. It describes the use of PyWinUSB for detecting connected USB devices and ensuring their functionality can be verified.
 
-Components
+<h2>Components</h2>
 Hardware
 Arduino Board: Interface for managing peripherals (bill acceptor, coin slot, coin hopper).
 Bill Acceptor: Accepts bills and provides signals to the system for processing.
@@ -17,13 +17,17 @@ csv and json: For generating receipts.
 Device Communication Protocols:
 USB HID for hardware communication with Arduino and other devices.
 Environment Setup
+
+
 1. Python Installation
 Ensure Python 3.x is installed on your system. Verify installation by running:
 
 bash
 Copy
 Edit
+
 python --version
+
 2. Install Dependencies
 Install the required libraries for Pygame and USB communication:
 
