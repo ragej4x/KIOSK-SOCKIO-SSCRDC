@@ -1,5 +1,5 @@
-Documentation for Integrating USB Devices with SOCKIO Checkout System
-Overview
+<h1>Documentation for Integrating USB Devices with SOCKIO Checkout System
+Overview</h1>
 This documentation outlines the integration of USB devices (Arduino, bill acceptor, coin slot, coin hopper, and tablet) with the SOCKIO checkout system. The goal is to use USB detection and communication for managing hardware peripherals within the checkout application. It describes the use of PyWinUSB for detecting connected USB devices and ensuring their functionality can be verified.
 
 Components
