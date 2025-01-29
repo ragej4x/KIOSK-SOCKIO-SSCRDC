@@ -1,10 +1,8 @@
 import wmi
 
 def list_usb_devices():
-    # Initialize the WMI client
     c = wmi.WMI()
 
-    # Query all USB devices
     usb_devices = c.query("SELECT * FROM Win32_PnPEntity WHERE DeviceID LIKE '%USB%'")
 
     if not usb_devices:

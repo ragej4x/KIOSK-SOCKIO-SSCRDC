@@ -1,16 +1,9 @@
 {
-    "items": [
-        {
-            "name": "Chicken Rice Meal",
-            "quantity": 1,
-            "price": 65
-        },
-        {
-            "name": "Frootees Biscuit",
-            "quantity": 1,
-            "price": 10
-        }
-    ],
+    "items": 0,
     "cash": 0,
-    "total_price": 150
+    "change": 0,
+    "total_price": 0,
+    "to_pay": 0,
+    "get_change": false,
+    "status": false
 }
