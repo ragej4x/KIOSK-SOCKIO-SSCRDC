@@ -22,7 +22,7 @@ BUTTON_TEXT_COLOR = (255, 255, 255)
 LINE_COLOR = (0, 0, 0)
 banner = pygame.image.load("assets/banner.png")
 
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption("SOCKIO - San Sebastian College Recoletos De Cavite")
 
 font = pygame.font.Font("poppins-light.ttf", 12)
