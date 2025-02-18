@@ -1,8 +1,75 @@
+"""
+    TODOO!!!
+    <UI>
+    UI-BASIC FUNCTIONALITY
+    UI-DESIGN LAYOUT
+    UI-ASSETS
+    
+
+    <LOGIC>
+    ARDUINO INTEGRATION
+    ARDUINO SERIAL COMM PYTHON TO ARDUINO <>
+
+    BASIC PULSE TRIGGER
+    TRIGGER LOGIC
+
+
+    <ARDUNO>
+
+    BILL ACCEPTOR PULSE CALIBRATION / LOGIC
+    BILL ACCEPTOR ANTI GHOSTING * NEED TO FIX
+    BILL TEST / BILL DETECTION CALIBRATE * TANGINA NETO
+    BILL GND PALSE FALSE POSSITIVE * FIX
+
+    COIN SLOT PULSE CALIBRATION / RESTRICTION SA IBANG COIN
+    COINSLOT LOGIC PULSE
+
+    COIN HOPPER IR LOGIC
+    COIN HOPPER RELAY LOGIC
+    COIN HOPPER ANTI SLIP AUTOMATIC SHUTTER
+    COIN HOPPER COUNT LOGIC
+
+    POS PRINTER JSON COMM
+    POS PRINTER GET SERIAL
+    POS PRINTER LOGIC LAYOUT ETC
+
+
+    TESTING STABLE 0.1
+
+    FIXED
+    * FIX UNG PUTANGINANG RANDOM NA EWAN BIGLANG NAG IINSERT KAHIT D KA NAG LALAGAY NG BILL
+        NANG AAUTO INCREMENT
+    
+    * UI BUGS MULTIPLE TOUCH
+
+    * COIN HOPPER NOT DETECTING COINS
+
+    * CHANGE NOT ACCURATE
+
+    * MISSMATCH PALSE
+
+    * POS PRINTER D NAG PPRINT
+
+    * POS PRINTER D MAAYOS LAYOUT
+
+    * UNSTABLE READINGS OF BILL / COINS
+
+    
+
+
+
+
+"""
+
+
+
+
 import pygame
 import sys
 from pygame.locals import *
 from PIL import Image, ImageTk
-import time , csv, json
+import time , csv, json, os, subprocess
+from print import pussy
 
 pygame.init()
 clock = pygame.Clock()
@@ -33,7 +100,7 @@ class SockioApp:
     def __init__(self):
         # categories for product filtering
         self.categories = ["All Meals", "Rice Meals", "Biscuits", "Drinks", "Icecream"]
-
+        self.open_pipeline = False
         self.search_active = False
         self.search_text = ""
         self.products = [
@@ -55,49 +122,49 @@ class SockioApp:
         self.filtered_products = self.products.copy()
         self.cart_items = []
         self.selected_product = None
-        self.selected_quantity = 1
+        self.selected_quantity = 0
         self.virtual_keyboard = self.create_virtual_keyboard()
-        self.keyboard_triggered = False  # Initialize the keyboard trigger state
+        self.keyboard_triggered = False
         self.mouse_pressed = False
         self.view_checkout_bool = False
         # Scroll variables
-        self.scroll_offset = 0  # Start position of the scroll
-        self.scroll_bar_height = 0  # Height of the scroll bar handle
-        self.mouse_drag_start_y = None  # Track the initial mouse Y position when dragging
-        self.scroll_bar_rect = pygame.Rect(WINDOW_WIDTH - 15, 80, 15, WINDOW_HEIGHT - 80)  # Position and size of scroll barself.scroll_bar_rect = pygame.Rect(WINDOW_WIDTH - 15, 80, 15, WINDOW_HEIGHT - 80)  # Position and size of scroll bar
+        self.scroll_offset = 0  
+        self.mouse_drag_start_y = None  
+        self.scroll_bar_rect = pygame.Rect(WINDOW_WIDTH - 15, 80, 15, WINDOW_HEIGHT - 80) 
         self.add_to_cart_bool = False
     
         self.view_cart_bool = False
         self.cashin_bool = False
+        self.main_menu = True
+
+        self.stat = 0
+    
 
     def load_image(self, image_path, size=(100, 100)):
         try:
             img = Image.open(image_path)
-            img = img.resize(size)  # Resize the image
+            img = img.resize(size)  # Resize the image if ever maliit
             mode = img.mode
             size = img.size
             data = img.tobytes()
-            return pygame.image.fromstring(data, size, mode)  # Convert to Pygame surface
+            return pygame.image.fromstring(data, size, mode) 
         except Exception as e:
             #print(f"Error loading image {image_path}: {e}")
-            return pygame.Surface(size)  # Return a placeholder surface if loading fails
+            return pygame.Surface(size) 
 
     def draw_scroll_bar(self):
-        total_height = len(self.filtered_products) * 220  # Total content height
-        visible_area = WINDOW_HEIGHT - 80  # Visible window area for products
+        total_height = len(self.filtered_products) * 220 
+        visible_area = WINDOW_HEIGHT - 80  
 
-        # Calculate the size of the scroll handle
         if total_height > visible_area:
             self.scroll_bar_height = max(visible_area * visible_area / total_height, 40)
             handle_y = 80 + (self.scroll_offset * visible_area / total_height)
         else:
-            self.scroll_bar_height = visible_area  # Full height if no scrolling
+            self.scroll_bar_height = visible_area 
             handle_y = 80
 
-        # Draw the scroll bar background
         pygame.draw.rect(screen, (200, 200, 200), self.scroll_bar_rect)
 
-        # Draw the scroll handle (the draggable part of the scroll bar)
         scroll_handle_rect = pygame.Rect(
             self.scroll_bar_rect.x, handle_y, self.scroll_bar_rect.width, self.scroll_bar_height
         )
@@ -109,41 +176,34 @@ class SockioApp:
         mouse_pos = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()[0]
         
-        # Check if the scrollbar handle is clicked and dragged
         if mouse_pressed and self.scroll_bar_rect.collidepoint(mouse_pos):
             if self.mouse_drag_start_y is None:
-                self.mouse_drag_start_y = mouse_pos[1]  # Store initial Y position
-            
-            # Calculate drag distance
+                self.mouse_drag_start_y = mouse_pos[1]
             delta_y = mouse_pos[1] - self.mouse_drag_start_y
-            self.mouse_drag_start_y = mouse_pos[1]  # Update start position
+            self.mouse_drag_start_y = mouse_pos[1] 
 
-            # Calculate proportional scroll offset
-            total_height = len(self.filtered_products) * 220  # Total height of product list
-            visible_area = WINDOW_HEIGHT - 80  # Height of visible area
+            total_height = len(self.filtered_products) * 220 
+            visible_area = WINDOW_HEIGHT - 80  
             if total_height > visible_area:
                 scroll_proportion = visible_area / total_height
                 self.scroll_offset += delta_y / scroll_proportion
 
-                # Clamp the scroll offset to valid range
                 self.scroll_offset = max(0, min(self.scroll_offset, total_height - visible_area))
         else:
-            self.mouse_drag_start_y = None  # Reset drag start position if mouse is released
+            self.mouse_drag_start_y = None  
 
     def create_virtual_keyboard(self):
         keys = [
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P",
             "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "Spc", "Del", "Dn"
         ]
-        key_width, key_height = 60, 40  # Dimensions of each key
-        horizontal_spacing, vertical_spacing = 5, 5  # Adjust spacing between keys
+        key_width, key_height = 60, 40 
+        horizontal_spacing, vertical_spacing = 5, 5  
         keys_positions = []
 
-        # Calculate keyboard starting position
         keyboard_x = (WINDOW_WIDTH - ((key_width + horizontal_spacing) * 10)) // 2
         keyboard_y = WINDOW_HEIGHT - 190
 
-        # Iterate over the keys to position them
         for i, key in enumerate(keys):
             x = (i % 10) * (key_width + horizontal_spacing) + keyboard_x
             y = (i // 10) * (key_height + vertical_spacing) + keyboard_y
@@ -154,24 +214,19 @@ class SockioApp:
 
     def draw_virtual_keyboard(self):
         if self.keyboard_triggered:
-            # Define the keyboard background
             pygame.draw.rect(screen, KEYBOARD_COLOR, (0, WINDOW_HEIGHT - 200, WINDOW_WIDTH, 200))
 
-            # Draw individual keys
             for key, pos in self.virtual_keyboard:
-                key_rect = pygame.Rect(pos, (50, 40))  # Adjust key size
-                # Change color when hovering over the key
+                key_rect = pygame.Rect(pos, (50, 40))  
                 color = BUTTON_HOVER_COLOR if key_rect.collidepoint(pygame.mouse.get_pos()) else BUTTON_COLOR
                 pygame.draw.rect(screen, color, key_rect, border_radius=5)
 
-                # Render the key label
                 key_text = font.render(key, True, KEY_TEXT_COLOR)
                 screen.blit(key_text, (key_rect.x + 15, key_rect.y + 10))
 
-                # Handle key presses (trigger only on the first click)
                 if key_rect.collidepoint(pygame.mouse.get_pos()) :
-                    if pygame.mouse.get_pressed()[0]:  # Left mouse button pressed
-                        if not self.mouse_pressed:  # Trigger only once
+                    if pygame.mouse.get_pressed()[0]: 
+                        if not self.mouse_pressed: 
                             self.mouse_pressed = True
                             if key == "Dn":
                                 self.view_cart_bool = False
@@ -196,11 +251,9 @@ class SockioApp:
 
 
     def filter_by_search_text(self):
-    # Check if the search text is empty
         if not self.search_text.strip():
-            self.filtered_products = self.products  # Show all products if no search text
+            self.filtered_products = self.products 
         else:
-            # Perform a case-insensitive search
             search_query = self.search_text.lower()
             self.filtered_products = [
                 product for product in self.products if search_query in product["name"].lower()
@@ -209,7 +262,7 @@ class SockioApp:
 
     def filter_by_category(self):
         if self.selected_category == "All Meals":
-            self.filtered_products = self.products  # Show all products
+            self.filtered_products = self.products
         elif self.selected_category == "Rice Meals":
             self.filtered_products = [
                 product for product in self.products if "Rice Meal" in product["name"]
@@ -271,22 +324,20 @@ class SockioApp:
         search_button_text = font.render("Search", True, TEXT_COLOR)
         screen.blit(search_button_text, (search_button_rect.x + 15, search_button_rect.y + 5))
 
-        # Open the keyboard when the search bar is clicked
         if search_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             self.search_active = True
             self.keyboard_triggered = True
 
-        # Trigger search when clicking the search button
         if search_button_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             self.filter_by_search_text()
 
 
 
     def render_products(self):
-        start_x = 200  # Start drawing products after the side panel
-        start_y = 140 - self.scroll_offset  # Adjust Y position by the scroll offset
+        start_x = 200  
+        start_y = 140 - self.scroll_offset 
         card_width, card_height = 140, 200
-        max_cards_per_row = (WINDOW_WIDTH - start_x - 20 - 20) // (card_width + 20)  # Reserve space for the scroll bar
+        max_cards_per_row = (WINDOW_WIDTH - start_x - 20 - 20) // (card_width + 20) 
 
         for i, product in enumerate(self.filtered_products):
             if i % max_cards_per_row == 0 and i > 0:
@@ -296,19 +347,15 @@ class SockioApp:
             product_card_rect = pygame.Rect(start_x, start_y, card_width, card_height)
             pygame.draw.rect(screen, (255, 255, 255), product_card_rect, border_radius=5)
 
-            # Load and render the product image at the top of the card (resize to 120x120)
-            product_image = self.load_image(product["image"], (120, 120))  # Resize image
-            screen.blit(product_image, (start_x + (card_width - 120) // 2, start_y + 10))  # Center the image
+            product_image = self.load_image(product["image"], (120, 120))  
+            screen.blit(product_image, (start_x + (card_width - 120) // 2, start_y + 10))  
 
-            # Render the product name below the image
             product_name_text = font.render(product["name"], True, TEXT_COLOR)
             screen.blit(product_name_text, (start_x + (card_width - product_name_text.get_width()) // 2, start_y + 130))  # Positioned below the image
 
-            # Render the price below the product name
             product_price_text = font.render(f"Php {product['price']}", True, TEXT_COLOR)
             screen.blit(product_price_text, (start_x + (card_width - product_price_text.get_width()) // 2, start_y + 150))  # Positioned below the name
 
-            # Add to Cart button at the bottom
             add_button_rect = pygame.Rect(start_x + 10, start_y + 170, 120, 30)
             pygame.draw.rect(screen, BUTTON_COLOR, add_button_rect,1, border_radius=5)
             add_button_text = font.render("Add to Cart", True, TEXT_COLOR)
@@ -323,42 +370,36 @@ class SockioApp:
 
 
 
-
     def draw_product_popup(self):
         popup_width, popup_height = 400, 400
         popup_rect = pygame.Rect(
-            (WINDOW_WIDTH - popup_width) // 2,  # Center horizontally
-            (WINDOW_HEIGHT - popup_height) // 2,  # Center vertically
+            (WINDOW_WIDTH - popup_width) // 2, 
+            (WINDOW_HEIGHT - popup_height) // 2, 
             popup_width,
             popup_height,
         )
         pygame.draw.rect(screen, POPUP_COLOR, popup_rect, border_radius=10)
 
-        # Load and draw the product image, enlarged (resize to 200x200)
-        product_image = self.load_image(self.selected_product["image"], (200, 200))  # Resize image
+        product_image = self.load_image(self.selected_product["image"], (200, 200))  
         screen.blit(product_image, (popup_rect.x + (popup_width - 200) // 2, popup_rect.y + 20))
 
-        # Draw product name and quantity
         product_name_text = font.render(self.selected_product["name"], True, TEXT_COLOR)
         screen.blit(product_name_text, (popup_rect.x + (popup_width - product_name_text.get_width()) // 2, popup_rect.y + 230))
 
         quantity_text = font.render(f"Quantity: {self.selected_quantity}", True, TEXT_COLOR)
         screen.blit(quantity_text, (popup_rect.x + (popup_width - quantity_text.get_width()) // 2, popup_rect.y + 260))
 
-        # Buttons for adjusting the quantity and completing the action
-        button_width, button_height = 40, 40  # Define button sizes
-        button_spacing = 20  # Space between the buttons
+        button_width, button_height = 40, 40 
+        button_spacing = 20  
 
         plus_button_rect = pygame.Rect(popup_rect.x + (popup_width - button_width * 3 - button_spacing * 2) // 2, popup_rect.y + popup_height - 80, button_width, button_height)
         minus_button_rect = pygame.Rect(plus_button_rect.x + button_width + button_spacing, popup_rect.y + popup_height - 80, button_width, button_height)
         done_button_rect = pygame.Rect(minus_button_rect.x + button_width + button_spacing, popup_rect.y + popup_height - 80, button_width * 2 + button_spacing, button_height)
 
-        # Draw the buttons
         pygame.draw.rect(screen, BUTTON_COLOR, plus_button_rect,1, border_radius=5)
         pygame.draw.rect(screen, BUTTON_COLOR, minus_button_rect,1, border_radius=5)
         pygame.draw.rect(screen, BUTTON_COLOR, done_button_rect,1, border_radius=5)
 
-        # Render the +, -, and Done text on the buttons
         plus_button_text = font.render("+", True, TEXT_COLOR)
         minus_button_text = font.render("-", True, TEXT_COLOR)
         done_button_text = font.render("Done", True, TEXT_COLOR)
@@ -366,32 +407,26 @@ class SockioApp:
         screen.blit(minus_button_text, (minus_button_rect.x + (button_width - minus_button_text.get_width()) // 2, minus_button_rect.y + (button_height - minus_button_text.get_height()) // 2))
         screen.blit(done_button_text, (done_button_rect.x + (done_button_rect.width - done_button_text.get_width()) // 2, done_button_rect.y + (button_height - done_button_text.get_height()) // 2))
 
-        # Handle button clicks (single press)
         mouse_pos = pygame.mouse.get_pos()
-        if pygame.mouse.get_pressed()[0]:  # Left mouse button is pressed
-            if not self.mouse_pressed:  # Trigger only once
+        if pygame.mouse.get_pressed()[0]:  
+            if not self.mouse_pressed: 
                 self.mouse_pressed = True
 
-                # Handle Plus button click
                 if plus_button_rect.collidepoint(mouse_pos):
                     self.selected_quantity += 1
 
-                # Handle Minus button click
                 if minus_button_rect.collidepoint(mouse_pos):
                     self.selected_quantity = max(1, self.selected_quantity - 1)
 
-                # Handle Done button click
                 if done_button_rect.collidepoint(mouse_pos):
-                    # Add item to cart and close popup
                     self.cart_items.append({
                         "name": self.selected_product["name"],
                         "quantity": self.selected_quantity,
-                        "price": self.selected_product["price"] * self.selected_quantity,
+                        "price": self.selected_product["price"] 
                     })
-                    self.selected_product = None  # Close the popup
+                    self.selected_product = None  
                     self.add_to_cart_bool = False
 
-        # Reset mouse_pressed when the mouse button is released
         if not pygame.mouse.get_pressed()[0]:
             self.mouse_pressed = False
 
@@ -414,8 +449,7 @@ class SockioApp:
             tab = pygame.draw.rect(screen, (255,255,255), (30,30, 500,400))
 
         """
-    
-
+        
     def render_cart_summary(self):
         
         cart_rect = pygame.Rect(0, WINDOW_HEIGHT - 40, WINDOW_WIDTH, 40)
@@ -430,7 +464,6 @@ class SockioApp:
         screen.blit(total_items_text, (10, WINDOW_HEIGHT - 40))
         screen.blit(total_price_text, (10 , WINDOW_HEIGHT - 20))
 
-        # Add "View Cart" button
         view_cart_button = pygame.Rect(WINDOW_WIDTH -   330, WINDOW_HEIGHT - 35, 100, 30)
         pygame.draw.rect(screen, BUTTON_COLOR, view_cart_button,1, border_radius=5)
         view_cart_text = font.render("View Cart", True, TEXT_COLOR)
@@ -443,7 +476,7 @@ class SockioApp:
 
 
         if view_cart_button.collidepoint(pygame.mouse.get_pos()) and self.keyboard_triggered == False:
-            if pygame.mouse.get_pressed()[0]:  # Left mouse button pressed
+            if pygame.mouse.get_pressed()[0]:  
                 if not self.mouse_pressed:  # Trigger only once
                     self.mouse_pressed = True
                     self.view_cart_bool = True
@@ -468,45 +501,49 @@ class SockioApp:
         )
         pygame.draw.rect(screen, POPUP_COLOR, popup_rect, border_radius=10)
 
-        # Header
         header_text = font.render("Your Cart", True, TEXT_COLOR)
         screen.blit(header_text, (popup_rect.x + 230, popup_rect.y + 10))
 
-        # Render items
         item_start_y = popup_rect.y + 50
         for i, item in enumerate(self.cart_items):
             item_rect = pygame.Rect(popup_rect.x + 20, item_start_y + i * 60, popup_width - 40, 50)
             pygame.draw.rect(screen, (230, 230, 230), item_rect, border_radius=5)
 
-            # Product Name and Price
             item_name = font.render(f"{item['name']} ({item['price']})", True, TEXT_COLOR)
             screen.blit(item_name, (item_rect.x + 20, item_rect.y + 10))
 
-            # Quantity and Buttons
             quantity_text = font.render(f"Qty: {item['quantity']}", True, TEXT_COLOR)
             screen.blit(quantity_text, (item_rect.x + 160, item_rect.y + 10))
 
-            # Add Quantity Button
             add_button = pygame.Rect(item_rect.x + 220, item_rect.y + 10, 30, 30)
             pygame.draw.rect(screen, BUTTON_COLOR, add_button,1, border_radius=5)
             add_text = font.render("+", True, TEXT_COLOR)
             screen.blit(add_text, (add_button.x + 8, add_button.y + 3))
 
-            if add_button.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-                item["quantity"] += 1
 
-            # Subtract Quantity Button
             subtract_button = pygame.Rect(item_rect.x + 260, item_rect.y + 10, 30, 30)
             pygame.draw.rect(screen, BUTTON_COLOR, subtract_button,1, border_radius=5)
             subtract_text = font.render("-", True, TEXT_COLOR)
             screen.blit(subtract_text, (subtract_button.x + 8, subtract_button.y + 3))
 
-            if subtract_button.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-                if item["quantity"] > 1:
-                    item["quantity"] -= 1
-                else:
-                    self.cart_items.pop(i)  # Remove item if quantity is 0
+                    
+            if pygame.mouse.get_pressed()[0]:
+                if not self.mouse_pressed:  
+                        if add_button.collidepoint(pygame.mouse.get_pos()):
+                            self.mouse_pressed = True
+                            item["quantity"] += 1
 
+
+
+                        if subtract_button.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+                            if not self.mouse_pressed:  
+                                self.mouse_pressed = True
+                                if item["quantity"] > 1:
+                                    item["quantity"] -= 1
+                                else:
+                                    self.cart_items.pop(i) 
+            else:
+                self.mouse_pressed = False
             # Remove Button
             remove_button = pygame.Rect(item_rect.x + 390, item_rect.y + 10, 60, 30)
             pygame.draw.rect(screen, (200, 50, 50), remove_button, border_radius=5)
@@ -527,7 +564,6 @@ class SockioApp:
             
 
 
-
     def cashin(self):
         pygame.draw.rect(screen, (BACKGROUND_COLOR), (0,0, WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.draw.line(screen, (10,10,10), (500,50),(500,400))
@@ -537,13 +573,23 @@ class SockioApp:
             data = json.load(file)
 
             pay_text = header_font.render(f" Total Items \n\n To pay \n\n Cash \n\n Change ", True, (10,10,10))
-            pay_count = header_font.render(f" {data['items']} \n\n {data['total_price']} \n\n  \n\n test ", True, (10,10,10))
+            pay_count = header_font.render(f" {len(self.cart_items)} \n\n {data['total_price']} \n\n {data['cash']} \n\n {data['change']}", True, (10,10,10))
+
             screen.blit(pay_text, (300, 50))
             screen.blit(pay_count, (600, 50))
 
-
-
+        notif_txt = [header_font.render("INSERT A BILL", True, (30,200,30)),header_font.render("THANK YOU", True, (30,200,30))]
         
+        if data["status"] == True:
+            
+        
+            screen.blit(notif_txt[1], (450, 450))
+
+            pygame.display.flip()
+        
+            
+
+
         back_button = pygame.Rect(100,  520, 200, 50)
         proceed_button = pygame.Rect(700,  520, 200, 50)
 
@@ -553,22 +599,83 @@ class SockioApp:
         back_text = font.render("Cancel", True, BUTTON_TEXT_COLOR)
         proceed_text = font.render("Pay", True, BUTTON_TEXT_COLOR)
 
-        screen.blit(back_text, (back_button.x + 80, back_button.y + 15))
+        screen.blit(back_text, (back_button.x + 80, back_button.y + 15)                         )
         screen.blit(proceed_text, (proceed_button.x + 90, proceed_button.y + 15))
         
 
         mouse_pos = pygame.mouse.get_pos()
         mouse_click = pygame.mouse.get_pressed()
+        
+                    
+        if not self.mouse_pressed:  # Trigger only once
+            self.mouse_pressed = True
+            if proceed_button.collidepoint(mouse_pos) and mouse_click[0] and not len(self.cart_items) < 1  :
+                #system.update()
+                #os.system("start payment_q.bat")
+                self.open_pipeline = True
+                self.generate_receipt()
+                
+        
+            if self.open_pipeline == True:
+                screen.blit(notif_txt[0], (450,450))
+                subprocess.Popen([sys.executable, 'sys_arduino.py'])
 
-        if back_button.collidepoint(mouse_pos) and mouse_click[0]:
-            self.cashin_bool = False
+
+
+
+            if data['status'] == True:
+                pussy.print_receipt()
+                print("PAYED", self.stat)
+                self.open_pipeline = False
+                
+                time.sleep(5)
+                self.add_to_cart_bool = False
+                self.cart_items = []
+                self.cashin_bool = False
+                self.main_menu = True
+                self.view_cart_bool = False
+                self.view_checkout_bool = False
+                
+                
+                receipt_data = {
+                    "items": 0,
+                    "cash":0,
+                    "change":0,
+                    "total_price":0,
+                    "to_pay":0,
+                    "get_change":False,
+                    "status":False
+                }
+                with open("receipt.json", "w") as jsonfile:
+                    json.dump(receipt_data, jsonfile, indent=4)
+
+
+                            
+
+
+
+
+
+            if back_button.collidepoint(mouse_pos) and mouse_click[0] :
+                self.cashin_bool = False
+        else:
+            self.mouse_pressed = False
             """
             if proceed_button.collidepoint(mouse_pos) and mouse_click[0]:
                 self.generate_receipt()
                 self.cashin_bool = True
                 """
+            
 
+    def menu(self):
+        rect = pygame.draw.rect(screen,(30,30,30),(400,505,270,50))
 
+        bg_menu = self.load_image("assets/menu.png", (WINDOW_WIDTH, WINDOW_HEIGHT))
+        
+        screen.blit(bg_menu, ( 0,0))
+        mouse = pygame.mouse.get_pos()
+        if rect.collidepoint(mouse) and pygame.mouse.get_pressed()[0]:
+            self.main_menu = False
     def draw(self):
         screen.fill(BACKGROUND_COLOR)
 
@@ -598,15 +705,20 @@ class SockioApp:
             self.draw_product_popup()
 
 
-        if self.view_checkout_bool:
-            self.draw_checkout_page()
 
 
         self.draw_view_cart_popup()
 
+        #self.view_cart()
+        if self.view_checkout_bool == True:
+            self.draw_checkout_page()
+
+
         if self.cashin_bool == True:
             self.cashin()
-        #self.view_cart()
+
+        if self.main_menu == True:
+            self.menu()
         pygame.display.update()
 
 
@@ -623,25 +735,24 @@ class SockioApp:
         # Generate JSON
         receipt_data = {
             "items": self.cart_items,
-            "cash":None,
-            "Change":None,
-            "total_price": sum(item["price"] * item["quantity"] for item in self.cart_items)
+            "cash":0,
+            "change":0,
+            "total_price": sum(item["price"] * item["quantity"] for item in self.cart_items),
+            "to_pay":0,
+            "get_change":False,
+            "status":False
         }
         with open("receipt.json", "w") as jsonfile:
             json.dump(receipt_data, jsonfile, indent=4)
-
-
 
 
     def draw_checkout_page(self):
         screen.fill(BACKGROUND_COLOR)
         self.draw_header()
 
-        # List of Orders Header
         header_text = font.render("List of Orders", True, TEXT_COLOR)
         screen.blit(header_text, (WINDOW_WIDTH // 2 - header_text.get_width() // 2, 100))
 
-        # Draw order list
         start_y = 150
         total_price = 0
 
@@ -657,12 +768,10 @@ class SockioApp:
             start_y += 40
             total_price += item['price'] * item['quantity']
 
-        # Total Price
         pygame.draw.line(screen, LINE_COLOR, (100, start_y), (900, start_y), 1)
         total_price_text = font.render(f"Total Price: P {total_price}", True, TEXT_COLOR)
         screen.blit(total_price_text, (700, start_y + 10))
 
-        # Footer Buttons
         back_button = pygame.Rect(100,  520, 200, 50)
         proceed_button = pygame.Rect(700,  520, 200, 50)
 
@@ -681,13 +790,11 @@ class SockioApp:
         if back_button.collidepoint(mouse_pos) and mouse_click[0]:
             self.view_checkout_bool = False
 
-        if proceed_button.collidepoint(mouse_pos) and mouse_click[0]:
-            self.generate_receipt()
+        if proceed_button.collidepoint(mouse_pos) and mouse_click[0] and len(self.cart_items) > 0:
             self.cashin_bool = True
 
 
                 
-# Run the game loop as before
 app = SockioApp()
 while True:
     for event in pygame.event.get():
@@ -695,8 +802,8 @@ while True:
             pygame.quit()
             sys.exit()
 
-    app.handle_scroll()  # Handle scroll bar interaction
+    app.handle_scroll()  
     app.draw()
     pygame.display.update()
     clock.tick(60)
-    print(clock)
+    #print(clock)
